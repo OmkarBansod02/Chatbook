@@ -1,6 +1,7 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { PDFProcessor } from './pdf-processor';
+import { google } from '@ai-sdk/google';
+import { RAGProcessor } from './rag-processor';
 import fs from 'fs';
 import path from 'path';
 // Avoid circular dependency by removing import { mastra } from '../index';
@@ -15,7 +16,7 @@ export const setPdfPath = (path: string) => {
 };
 
 /**
- * PDF Upload Tool - Process and embed a PDF document
+ * PDF Upload Tool - Process and embed a PDF document using Mastra RAG
  * 
  * This tool allows users to upload and process a PDF file, extracting text,
  * creating embeddings, and storing them in Qdrant for later retrieval.
@@ -58,19 +59,16 @@ export const uploadPdfTool = createTool({
       // Store path for future queries
       setPdfPath(context.filePath);
 
-      // Create a new PDF processor with Qdrant config
-      const processor = new PDFProcessor({
+      // Create a new RAG processor with Qdrant config
+      const processor = new RAGProcessor({
         url: process.env.QDRANT_URL || 'http://localhost:6333',
         apiKey: process.env.QDRANT_API_KEY,
-        collectionName: 'pdf_documents' // Ensure consistent collection name
+        indexName: 'pdf_documents' // Using indexName instead of collectionName
       });
 
-      // Process the PDF file
-      const result = await processor.processPDF(context.filePath, {
-        title: context.title,
-        author: context.author,
-        description: context.description,
-      });
+      // Process the PDF file with the Google embedding model
+      const embedder = google.embedding('embedding-001');
+      const result = await processor.processPDF(context.filePath, embedder);
 
       return {
         success: true,
@@ -90,10 +88,10 @@ export const uploadPdfTool = createTool({
 });
 
 /**
- * PDF Query Tool - Search for content in processed PDFs
+ * PDF Query Tool - Search for content in processed PDFs using Mastra RAG
  * 
  * This tool allows users to search for relevant content in previously processed
- * PDF files using semantic search via Qdrant vector database.
+ * PDF files using semantic search via Qdrant vector database and Mastra's RAG.
  */
 export const queryPdfTool = createTool({
   id: 'query-pdf',
@@ -139,11 +137,11 @@ export const queryPdfTool = createTool({
       // Log which PDF is being queried
       console.log(`Querying PDF: ${pdfPath} for query: "${context.query}"`);
 
-      // Create a new PDF processor with Qdrant config
-      const processor = new PDFProcessor({
+      // Create a new RAG processor with Qdrant config
+      const processor = new RAGProcessor({
         url: process.env.QDRANT_URL || 'http://localhost:6333',
         apiKey: process.env.QDRANT_API_KEY,
-        collectionName: 'pdf_documents' // Ensure consistent collection name
+        indexName: 'pdf_documents' // Using indexName instead of collectionName
       });
 
       // Search for content
@@ -155,25 +153,9 @@ export const queryPdfTool = createTool({
       } else {
         console.log(`Found ${results.length} matching chunks`);
       }
-      
-      // Format results with proper text and metadata, adapting to our simplified structure
-      const formattedResults = results.map(result => {
-        // Ensure we have text from metadata
-        const resultText = result.metadata?.text || "No text content available for this document section";
-        
-        return {
-          text: resultText,
-          score: result.score,
-          metadata: {
-            fileName: path.basename(pdfPath),
-            title: result.metadata?.title || path.basename(pdfPath, '.pdf'),
-            source: result.metadata?.source || path.basename(pdfPath),
-          }
-        };
-      });
 
       return {
-        results: formattedResults,
+        results: results,
         query: context.query,
         fileName: path.basename(pdfPath),
       };

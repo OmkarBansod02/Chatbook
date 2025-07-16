@@ -6,7 +6,8 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { PDFProcessor } from './pdf-processor';
+import { google } from '@ai-sdk/google';
+import { RAGProcessor } from './rag-processor';
 import { setLastProcessedPdfPath } from './pdf-storage';
 
 // Default PDF path to process on startup
@@ -35,22 +36,22 @@ export async function initializePdf() {
 
     console.log(`Found target PDF: ${pdfPath}`);
     
-    // Create a processor instance with explicit collection name
-    const processor = new PDFProcessor({
+    // Create a processor instance with explicit index name
+    const processor = new RAGProcessor({
       url: process.env.QDRANT_URL || 'http://localhost:6333',
       apiKey: process.env.QDRANT_API_KEY,
-      collectionName: 'pdf_documents'
+      indexName: 'pdf_documents'
     });
 
     // Clean up any old data before processing
     await processor.cleanup();
     
     console.log('Processing default PDF...');
-    // Process the PDF, deriving the title from the file name for accuracy.
-    const pdfTitle = path.basename(pdfPath, '.pdf').replace(/[-_]/g, ' ');
-    const result = await processor.processPDF(pdfPath, { title: pdfTitle });
+    // Process the PDF using the Google embedding model.
+    const embedder = google.embedding('embedding-001');
+    const result = await processor.processPDF(pdfPath, embedder);
     
-    console.log(`PDF processed successfully! Created ${result.chunks} chunks with ${result.embeddings} embeddings.`);
+    console.log(`PDF processed successfully! Created ${result.chunks} chunks.`);
     
     // Update storage with the processed PDF path
     setLastProcessedPdfPath(DEFAULT_PDF_PATH);
