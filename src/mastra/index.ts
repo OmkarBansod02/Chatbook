@@ -2,7 +2,6 @@ import { Mastra } from '@mastra/core/mastra';
 import { PinoLogger } from '@mastra/loggers';
 import { LibSQLStore } from '@mastra/libsql';
 import { pdfChatAgent } from './agents/pdf-chat-agent';
-import { pdfWorkflow, processPdfWorkflow, queryPdfWorkflow } from './workflows/pdf-chat-workflow';
 import path from 'path';
 import fs from 'fs';
 // Import our PDF initialization utility - importing at the top to avoid loading issues
@@ -13,11 +12,6 @@ const TARGET_PDF = 'D:/Mastra-Book/mastra-chatbook/src/mastra/data/pdf/Attention
 
 // Create Mastra instance
 export const mastra = new Mastra({
-  workflows: { 
-    pdfWorkflow,       // Main unified workflow
-    processPdfWorkflow, // Legacy compatibility
-    queryPdfWorkflow   // Legacy compatibility
-  },
   agents: { 
     pdfChatAgent
   },
@@ -27,7 +21,7 @@ export const mastra = new Mastra({
   }),
   logger: new PinoLogger({
     name: 'Mastra',
-    level: 'info',
+    level: 'info',  
   }),
 });
 
